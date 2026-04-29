@@ -11,10 +11,27 @@ namespace HeroesApi.Controllers;
 public class HeroesController : ControllerBase
 {
     [HttpGet]
-    public ActionResult<List<Hero>> GetAll()
+    public ActionResult<List<Hero>> GetAll([FromQuery] string? universe = null)
     {
-        return Ok(HeroesStore.Heroes);
+        IEnumerable<Hero> heroes = HeroesStore.Heroes;
+
+        if (!string.IsNullOrWhiteSpace(universe))
+        {
+            // Пытаемся преобразовать строку в enum (игнорируем регистр)
+            if (Enum.TryParse<Universe>(universe, true, out var targetUniverse))
+            {
+                heroes = heroes.Where(h => h.Universe == targetUniverse);
+            }
+            else
+            {
+                // Если передано неизвестное значение, возвращаем пустой список
+                return Ok(new List<Hero>());
+            }
+        }
+
+        return Ok(heroes.ToList());
     }
+
 
     [HttpGet("{id}")]
     public ActionResult<Hero> GetById(int id)
@@ -77,4 +94,20 @@ public class HeroesController : ControllerBase
             internalNotesAfterDeserialize = deserialized?.InternalNotes ?? "null - поле было проигнорировано"
         });
     }
+
+    [HttpGet("search")]
+    public ActionResult<List<Hero>> Search([FromQuery] string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return Ok(HeroesStore.Heroes);
+        }
+
+        var found = HeroesStore.Heroes
+            .Where(h => h.Name.Contains(name, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        return Ok(found);
+    }
+
 }
